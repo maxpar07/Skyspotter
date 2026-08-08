@@ -19,6 +19,7 @@ import {
   type ObserverPoint,
 } from "../services/geometry/geometry";
 import { RateLimiter } from "../services/rateLimiter";
+import { AdsbdbRouteProvider } from "../services/routes/AdsbdbRouteProvider";
 import type { Aircraft } from "@skyspotter/shared";
 
 const WIDEBODY_TYPE_PREFIXES = ["A33", "A34", "A35", "A38", "B74", "B76", "B77", "B78"];
@@ -77,11 +78,15 @@ export class AircraftCache {
   private pendingByRegion = new Map<string, Promise<Aircraft[]>>();
   private readonly rateLimiter: RateLimiter;
 
+  private readonly routeProvider: AdsbdbRouteProvider;
+
   constructor(
     private readonly provider: ADSBProvider,
-    private readonly cacheTtlMs = CACHE_TTL_MS
+    private readonly cacheTtlMs = CACHE_TTL_MS,
+    routeProvider = new AdsbdbRouteProvider()
   ) {
     this.rateLimiter = new RateLimiter(RATE_LIMIT_MAX_REQUESTS, RATE_LIMIT_WINDOW_MS);
+    this.routeProvider = routeProvider;
   }
 
   /** Key used to bucket cached results by rough observer location. */
@@ -160,8 +165,42 @@ export class AircraftCache {
     }
 
     const enriched = this.enrichAndRank(observer, raw);
+    await this.enrichRoutes(enriched);
     this.latestByRegion.set(key, { aircraft: enriched, fetchedAt: Date.now() });
     return enriched;
+  }
+
+  /**
+   * Fills in origin/destination/airline for aircraft the provider didn't
+   * already give route info for, using adsbdb as a fallback (see
+   * services/routes/AdsbdbRouteProvider.ts). Mutates the given array's
+   * entries in place. A single aircraft's lookup failing (network error,
+   * unknown callsign, etc.) never blocks the others or the overall
+   * response — worst case that one aircraft just keeps its existing
+   * (possibly empty) route fields.
+   */
+  private async enrichRoutes(aircraft: Aircraft[]): Promise<void> {
+    const needsLookup = aircraft.filter(
+      (a) => a.callsign && !a.originAirport && !a.destinationAirport
+    );
+    if (needsLookup.length === 0) return;
+
+    await Promise.allSettled(
+      needsLookup.map(async (a) => {
+        try {
+          const route = await this.routeProvider.lookupRoute(a.callsign!);
+          if (!route) return;
+          a.originAirport = route.originAirport ?? a.originAirport;
+          a.destinationAirport = route.destinationAirport ?? a.destinationAirport;
+          a.airlineName = a.airlineName ?? route.airlineName;
+          a.airlineIcao = a.airlineIcao ?? route.airlineIcao;
+        } catch (err) {
+          console.warn(
+            `[AircraftCache] Route lookup failed for ${a.callsign}: ${(err as Error).message}`
+          );
+        }
+      })
+    );
   }
 
   private enrichAndRank(observer: ObserverPoint, raw: RawAircraft[]): Aircraft[] {

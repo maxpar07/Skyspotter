@@ -1,0 +1,9 @@
+# netlify.toml — lives at the repo root (Netlify's recommended spot for
+# monorepos). No "base" is set deliberately: that keeps Netlify's automatic
+# `npm install` running at the repo root, which is what correctly links
+# @skyspotter/shared via npm workspaces. The build command then builds
+# shared first, then apps/web, and publish points at the nested dist/.
+
+[build]
+  command = "npm ci && npm run build:web"
+  publish = "apps/web/dist"

@@ -16,7 +16,21 @@ services:
     # into apps/api correctly. Building or starting from inside apps/api
     # directly would miss that link.
     rootDir: .
-    buildCommand: npm install && npm run build:api
+    # npm ci (not npm install) strictly installs exactly what's pinned in
+    # package-lock.json rather than potentially re-resolving newer versions
+    # — this is what actually fixed a real TypeScript version mismatch that
+    # broke this build previously.
+    #
+    # --include=dev is required here because NODE_ENV=production is set
+    # below as a service env var, and Render applies env vars during the
+    # build step too. npm's default behavior when NODE_ENV=production is
+    # set is to skip devDependencies entirely — which silently drops
+    # @types/node, @types/express, and @types/cors, since those are
+    # devDependencies (correctly — they're not needed at runtime, only to
+    # type-check during the build). Without this flag, tsc fails with
+    # "Cannot find name 'process'/'console'/'fetch'" etc. --include=dev
+    # forces npm to install them anyway, just for this build step.
+    buildCommand: npm ci --include=dev && npm run build:api
     startCommand: npm run start -w apps/api
     envVars:
       - key: ACTIVE_PROVIDER
