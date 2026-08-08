@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Aircraft } from "@skyspotter/shared";
 import { SkyDial } from "../../components/SkyDial";
+import { VerticalSpeedIndicator } from "../../components/VerticalSpeedIndicator";
 import { useAircraftRegistry } from "../../hooks/useAircraftRegistry";
 import {
   formatAltitude,
@@ -9,8 +10,10 @@ import {
   formatDistance,
   formatEta,
   formatNavModes,
+  formatQnh,
   formatSpeed,
   formatTemperature,
+  formatVerticalSpeed,
   formatWind,
 } from "../../lib/formatters";
 
@@ -29,6 +32,55 @@ function DataField({ label, value, large = false }: { label: string; value: stri
     <div className="bg-surfaceRaised rounded-xl px-3 py-2.5">
       <div className={`text-text-muted uppercase tracking-wide font-body ${large ? "text-xs" : "text-[11px]"}`}>{label}</div>
       <div className={`font-mono text-text-primary tabular-nums ${large ? "text-2xl" : "text-base"}`}>{value}</div>
+    </div>
+  );
+}
+
+// Same tile shape as DataField, but pairs the number with the VSI graphic
+// so climb/descend is legible at a glance, not just as a signed number.
+function VerticalSpeedField({
+  verticalRateFpm,
+  isImperial,
+  large = false,
+}: {
+  verticalRateFpm: number | undefined;
+  isImperial: boolean;
+  large?: boolean;
+}) {
+  return (
+    <div className="bg-surfaceRaised rounded-xl px-3 py-2.5 flex items-center justify-between gap-2">
+      <div>
+        <div className={`text-text-muted uppercase tracking-wide font-body ${large ? "text-xs" : "text-[11px]"}`}>
+          Vertical speed
+        </div>
+        <div className={`font-mono text-text-primary tabular-nums ${large ? "text-2xl" : "text-base"}`}>
+          {formatVerticalSpeed(verticalRateFpm, isImperial)}
+        </div>
+      </div>
+      <VerticalSpeedIndicator verticalRateFpm={verticalRateFpm} size={large ? 48 : 36} />
+    </div>
+  );
+}
+
+// Shown whenever the aircraft has route info from either the ADS-B
+// provider or the adsbdb fallback lookup (see apps/api's AircraftCache).
+// Renders nothing if neither origin nor destination is known — most
+// general-aviation and some military flights won't have a route on file,
+// and a row of dashes here wouldn't be useful.
+function RouteStrip({ aircraft }: { aircraft: Aircraft }) {
+  if (!aircraft.originAirport && !aircraft.destinationAirport) return null;
+
+  return (
+    <div className="flex items-center gap-2 mb-3 flex-wrap">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8E8E93" strokeWidth="2" className="flex-shrink-0">
+        <path d="M2 16l20-8-8 20-3-9-9-3z" />
+      </svg>
+      <span className="font-mono text-text-primary text-sm tabular-nums">{aircraft.originAirport ?? "—"}</span>
+      <svg width="16" height="10" viewBox="0 0 24 14" fill="none" stroke="#8E8E93" strokeWidth="2" className="flex-shrink-0">
+        <path d="M1 7h20M15 1l6 6-6 6" />
+      </svg>
+      <span className="font-mono text-text-primary text-sm tabular-nums">{aircraft.destinationAirport ?? "—"}</span>
+      {aircraft.airlineName && <span className="text-text-muted text-xs">· {aircraft.airlineName}</span>}
     </div>
   );
 }
@@ -171,6 +223,8 @@ export function FeaturedAircraft({ aircraft, isPinned = false, onClearPin, units
             <div className="text-text-muted text-xs mb-2">{aircraft.description}</div>
           )}
 
+          <RouteStrip aircraft={aircraft} />
+
           <div className={`grid gap-2.5 mt-4 ${isFullscreen ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-2 sm:grid-cols-3"}`}>
             <DataField label="Altitude" value={formatAltitude(aircraft.altitudeFeet, isImperial)} large={isFullscreen} />
             <DataField label="Speed" value={formatSpeed(aircraft.groundSpeedKnots, isImperial)} large={isFullscreen} />
@@ -178,6 +232,7 @@ export function FeaturedAircraft({ aircraft, isPinned = false, onClearPin, units
             <DataField label="Bearing" value={formatBearing(aircraft.bearingDegrees)} large={isFullscreen} />
             <DataField label="ETA overhead" value={formatEta(aircraft.estimatedSecondsUntilOverhead)} large={isFullscreen} />
             <DataField label="Registration" value={aircraft.registration ?? "—"} large={isFullscreen} />
+            <VerticalSpeedField verticalRateFpm={aircraft.verticalRateFpm} isImperial={isImperial} large={isFullscreen} />
           </div>
 
           {isFullscreen && <ExtraInfoSection aircraft={aircraft} registry={registry} isImperial={isImperial} />}
@@ -214,7 +269,7 @@ function ExtraInfoSection({
   if (aircraft.navModes?.length) fields.push({ label: "FMS / autopilot modes", value: formatNavModes(aircraft.navModes) });
   if (aircraft.navHeadingDegrees != null) fields.push({ label: "Selected heading", value: formatBearing(aircraft.navHeadingDegrees) });
   if (aircraft.navAltitudeFeet != null) fields.push({ label: "Selected altitude", value: formatAltitude(aircraft.navAltitudeFeet, isImperial) });
-  if (aircraft.navQnhHpa != null) fields.push({ label: "Selected QNH", value: `${aircraft.navQnhHpa} hPa` });
+  if (aircraft.navQnhHpa != null) fields.push({ label: "Selected QNH", value: formatQnh(aircraft.navQnhHpa, isImperial) });
   if (aircraft.windSpeedKnots != null || aircraft.windDirectionDegrees != null) {
     fields.push({ label: "Wind", value: formatWind(aircraft.windSpeedKnots, aircraft.windDirectionDegrees, isImperial) });
   }
