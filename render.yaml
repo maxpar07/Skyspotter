@@ -1,0 +1,27 @@
+# render.yaml — Render "Blueprint" config for the backend.
+#
+# Using this file lets Render set up the service from a single "New Blueprint"
+# import instead of filling in each field by hand — but every value here can
+# also just be typed into Render's dashboard manually if you'd rather not use
+# a Blueprint. Either way, everything happens through Render's web UI —
+# nothing here requires a local Render CLI.
+
+services:
+  - type: web
+    name: skyspotter-api
+    runtime: node
+    plan: free
+    # Root of the repo, NOT apps/api — this is deliberate. `npm install` at
+    # the repo root is what makes npm workspaces link @skyspotter/shared
+    # into apps/api correctly. Building or starting from inside apps/api
+    # directly would miss that link.
+    rootDir: .
+    buildCommand: npm install && npm run build:api
+    startCommand: npm run start -w apps/api
+    envVars:
+      - key: ACTIVE_PROVIDER
+        value: airplanes_live
+      - key: NODE_ENV
+        value: production
+      # PORT is injected automatically by Render — apps/api/src/server.ts
+      # already reads process.env.PORT, so nothing else to configure there.

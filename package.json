@@ -1,0 +1,13 @@
+{
+  "name": "skyspotter",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:api": "npm run build -w packages/shared && npm run build -w apps/api",
+    "build:web": "npm run build -w packages/shared && npm run build -w apps/web"
+  }
+}

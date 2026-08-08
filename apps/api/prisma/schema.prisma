@@ -1,0 +1,132 @@
+// SkySpotter — Prisma schema
+// Postgres. Designed so Phase 2 (PWA push) and Phase 3 (Android via same API)
+// don't require schema changes — preferences/devices are already modeled
+// generically rather than tied to "browser".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  displayName   String?
+  createdAt     DateTime  @default(now())
+
+  preferences   NotificationPreference?
+  settings      UserSettings?
+  logbookEntries SpottingLogEntry[]
+  favoriteAirlines FavoriteAirline[]
+  favoriteAircraftTypes FavoriteAircraftType[]
+  devices       Device[]
+}
+
+// One row per push-capable client (web push subscription, or later an
+// Android FCM token) — keeps notification delivery provider-agnostic.
+model Device {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  platform      DevicePlatform
+  pushToken     String   // web push endpoint JSON, or FCM token
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+enum DevicePlatform {
+  WEB
+  ANDROID
+  IOS
+}
+
+model NotificationPreference {
+  id                  String   @id @default(cuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  notifyOverhead      Boolean  @default(true)
+  notifyA380          Boolean  @default(false)
+  notifyB747          Boolean  @default(false)
+  notifyMilitary      Boolean  @default(false)
+  notifyCargo         Boolean  @default(false)
+
+  watchedAirlines     String[] // ICAO airline codes
+  watchedAircraftTypes String[] // ICAO type codes, e.g. "A388"
+  watchedRegistrations String[]
+}
+
+model UserSettings {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  units           UnitSystem @default(IMPERIAL)
+  refreshSeconds  Int        @default(7)
+  theme           Theme      @default(SYSTEM)
+  mapStyle        String     @default("default")
+}
+
+enum UnitSystem {
+  METRIC
+  IMPERIAL
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+// A single logged sighting. Deliberately denormalized (airline name, type
+// name stored as strings) so the logbook stays readable/exportable even if
+// upstream reference data changes later.
+model SpottingLogEntry {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  spottedAt         DateTime @default(now())
+  latitude          Float
+  longitude         Float
+
+  icaoHex           String
+  registration      String?
+  callsign          String?
+  flightNumber      String?
+  airlineName       String?
+  aircraftType      String?
+  originAirport     String?
+  destinationAirport String?
+  altitudeFeet      Float?
+  groundSpeedKnots  Float?
+
+  isMilitary        Boolean  @default(false)
+  isCargo           Boolean  @default(false)
+
+  @@index([userId, spottedAt])
+  @@index([icaoHex])
+}
+
+model FavoriteAirline {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  airlineIcao String
+
+  @@unique([userId, airlineIcao])
+}
+
+model FavoriteAircraftType {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  typeIcao    String
+
+  @@unique([userId, typeIcao])
+}
