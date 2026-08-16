@@ -52,7 +52,7 @@ export class AirplanesLiveProvider implements ADSBProvider {
   readonly name = "airplanes.live";
 
   constructor(
-    private readonly baseUrl = "https://api.airplanes.live/v2/point",
+    private readonly baseUrl = "https://api.adsb.lol/v2",
     private readonly timeoutMs = DEFAULT_TIMEOUT_MS
   ) {}
 
