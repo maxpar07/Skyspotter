@@ -8,6 +8,7 @@ import { AirplanesLiveProvider } from "./AirplanesLiveProvider";
 import { AdsbLolProvider } from "./AdsbLolProvider";
 import { AdsbFiProvider } from "./AdsbFiProvider";
 import { ADSBExchangeProvider } from "./ADSBExchangeProvider";
+import { FailoverProvider } from "./FailoverProvider";
 import { ACTIVE_PROVIDER } from "../../config/providerConfig";
 
 export function createActiveProvider(): ADSBProvider {
@@ -27,6 +28,12 @@ export function createActiveProvider(): ADSBProvider {
       }
       return new ADSBExchangeProvider(apiKey);
     }
+    case "failover":
+      // Tries each free provider in turn on failure — see FailoverProvider.ts.
+      // Order: airplanes.live, then adsb.lol, then adsb.fi. All three are
+      // independent free services, so one throttling doesn't take the app
+      // down; it just falls through to the next.
+      return new FailoverProvider([new AirplanesLiveProvider(), new AdsbLolProvider(), new AdsbFiProvider()]);
     default: {
       // Exhaustiveness check — a new ProviderName without a case here is a compile error.
       const _exhaustive: never = ACTIVE_PROVIDER;

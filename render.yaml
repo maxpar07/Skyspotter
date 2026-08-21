@@ -34,7 +34,10 @@ services:
     startCommand: npm run start -w apps/api
     envVars:
       - key: ACTIVE_PROVIDER
-        value: airplanes_live
+        # "failover" tries airplanes.live, then adsb.lol, then adsb.fi —
+        # see FailoverProvider.ts. All three are free/independent, so one
+        # throttling your IP no longer takes the whole feed down.
+        value: failover
       - key: NODE_ENV
         value: production
       # PORT is injected automatically by Render — apps/api/src/server.ts
