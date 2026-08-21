@@ -8,6 +8,7 @@ import { FeaturedAircraft, type Units } from "./FeaturedAircraft";
 import { FilterControls, FILTER_DEFAULTS } from "./FilterControls";
 import { NearbyAircraftList } from "./NearbyAircraftList";
 import { RadarRangeControl, DEFAULT_RADAR_RINGS_MI } from "./RadarRangeControl";
+import { RadarSizeControl, DEFAULT_RADAR_SIZE_PX } from "./RadarSizeControl";
 import { RefreshRateControl } from "./RefreshRateControl";
 import { SortControls, type SortField, type SortDirection } from "./SortControls";
 import { ViewModeToggle, type ViewMode } from "./ViewModeToggle";
@@ -54,6 +55,10 @@ export function HomePage() {
   const [radarRingsMi, setRadarRingsMi] = useLocalStorageState<number[]>(
     "skyspotter.radarRingsMi",
     DEFAULT_RADAR_RINGS_MI
+  );
+  const [radarSizePx, setRadarSizePx] = useLocalStorageState<number>(
+    "skyspotter.radarSizePx",
+    DEFAULT_RADAR_SIZE_PX
   );
 
   const { aircraft, loading, error } = useAircraftFeed(latitude, longitude, milesToNm(radiusMi), refreshSeconds * 1000);
@@ -133,6 +138,7 @@ export function HomePage() {
                     units={units}
                     onUnitsChange={setUnits}
                     radarRingsMi={radarRingsMi}
+                    radarSizePx={radarSizePx}
                   />
                 ) : (
                   !loading && <p className="text-text-muted">Nothing matches the current filters right now.</p>
@@ -163,6 +169,7 @@ export function HomePage() {
             />
             <RefreshRateControl seconds={refreshSeconds} onChange={setRefreshSeconds} />
             <RadarRangeControl ringsMiles={radarRingsMi} onChange={setRadarRingsMi} />
+            <RadarSizeControl sizePx={radarSizePx} onChange={setRadarSizePx} />
           </div>
         </div>
       )}
