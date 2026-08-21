@@ -28,6 +28,7 @@ interface FeaturedAircraftProps {
   units: Units;
   onUnitsChange: (units: Units) => void;
   radarRingsMi: number[];
+  radarSizePx: number;
 }
 
 function DataField({ label, value, large = false }: { label: string; value: string; large?: boolean }) {
@@ -113,6 +114,7 @@ export function FeaturedAircraft({
   units,
   onUnitsChange,
   radarRingsMi,
+  radarSizePx,
 }: FeaturedAircraftProps) {
   const isOverhead = aircraft.state === "overhead";
   const isImperial = units === "imperial";
@@ -230,7 +232,7 @@ export function FeaturedAircraft({
             distanceMeters={aircraft.distanceMeters ?? null}
             ringsMiles={radarRingsMi}
             isOverhead={isOverhead}
-            size={isFullscreen ? 320 : 200}
+            size={isFullscreen ? Math.round(radarSizePx * 1.5) : radarSizePx}
           />
           {isOverhead && (
             <span className="text-amber font-display font-semibold text-sm tracking-wide animate-pulse">
