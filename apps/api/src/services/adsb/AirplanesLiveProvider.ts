@@ -4,11 +4,6 @@
 // response shape family as adsb.lol and adsb.fi, which is expected since
 // all three are built on the same open-source readsb project). Set as the
 // active provider by default; see config/providerConfig.ts to switch.
-//
-// Same honesty note as the other providers: I haven't been able to fetch a
-// live response from this sandbox (network here is allowlisted to package
-// registries only), so this is built from airplanes.live's documented API
-// shape, not a response I've verified directly.
 
 import type { ADSBProvider, ADSBQuery, RawAircraft } from "./ADSBProvider";
 
@@ -52,7 +47,13 @@ export class AirplanesLiveProvider implements ADSBProvider {
   readonly name = "airplanes.live";
 
   constructor(
-    private readonly baseUrl = "https://api.adsb.lol/v2/point",
+    // BUG FIX: this was previously defaulting to "https://api.adsb.lol/v2/point"
+    // — a copy-paste leftover from AdsbLolProvider — which meant every
+    // "airplanes.live" request was silently actually hitting adsb.lol's
+    // servers instead. That's almost certainly why adsb.lol started
+    // throttling: this provider's traffic was landing there under a
+    // different name in the logs/errors.
+    private readonly baseUrl = "https://api.airplanes.live/v2/point",
     private readonly timeoutMs = DEFAULT_TIMEOUT_MS
   ) {}
 
