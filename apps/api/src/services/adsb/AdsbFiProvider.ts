@@ -4,8 +4,18 @@
 // shape as ADSB.lol. Kept as a documented fallback per the requirement
 // that ADSB.fi be available if ADSB.lol has an outage; switch via
 // ACTIVE_PROVIDER in config/providerConfig.ts.
+//
+// BUG FIX: this was previously hitting "/api/v2/point/{lat}/{lon}/{dist}",
+// which was never a valid adsb.fi path — their actual (now-deprecated) v2
+// shape is "/api/v2/lat/{lat}/lon/{lon}/dist/{dist}", and per their own
+// docs the current, non-deprecated endpoint is v3 using that same
+// lat/lon/dist path shape. That's what's used below. Note from adsb.fi's
+// terms: repeated invalid (400/401/403/404/429) requests can themselves
+// earn a temporary IP restriction — so the old bug wasn't just failing
+// silently, it was actively working against future requests too.
 
 import type { ADSBProvider, ADSBQuery, RawAircraft } from "./ADSBProvider";
+import { ADSB_USER_AGENT } from "./userAgent";
 
 interface ReadsbAircraft {
   hex: string;
@@ -44,21 +54,21 @@ export class AdsbFiProvider implements ADSBProvider {
   readonly name = "ADSB.fi";
 
   constructor(
-    private readonly baseUrl = "https://opendata.adsb.fi/api/v2/point",
+    private readonly baseUrl = "https://opendata.adsb.fi/api/v3/lat",
     private readonly timeoutMs = DEFAULT_TIMEOUT_MS
   ) {}
 
   async fetchNearby(query: ADSBQuery): Promise<RawAircraft[]> {
     const { latitude, longitude, radiusNm } = query;
     const clampedRadius = Math.min(Math.max(radiusNm, 1), 250);
-    const url = `${this.baseUrl}/${latitude}/${longitude}/${clampedRadius}`;
+    const url = `${this.baseUrl}/${latitude}/lon/${longitude}/dist/${clampedRadius}`;
 
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
 
     let response: Response;
     try {
-      response = await fetch(url, { signal: controller.signal });
+      response = await fetch(url, { signal: controller.signal, headers: { "User-Agent": ADSB_USER_AGENT } });
     } catch (err) {
       if ((err as Error).name === "AbortError") {
         throw new Error(`ADSB.fi request timed out after ${this.timeoutMs}ms`);

@@ -4,6 +4,7 @@
 // Requires ADSBX_API_KEY (RapidAPI key) in the environment.
 
 import type { ADSBProvider, ADSBQuery, RawAircraft } from "./ADSBProvider";
+import { ADSB_USER_AGENT } from "./userAgent";
 
 interface ADSBExchangeAircraftResponse {
   hex: string;
@@ -39,6 +40,7 @@ export class ADSBExchangeProvider implements ADSBProvider {
       headers: {
         "X-RapidAPI-Key": this.apiKey,
         "X-RapidAPI-Host": "adsbexchange-com1.p.rapidapi.com",
+        "User-Agent": ADSB_USER_AGENT,
       },
     });
 
