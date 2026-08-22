@@ -6,6 +6,7 @@
 // active provider by default; see config/providerConfig.ts to switch.
 
 import type { ADSBProvider, ADSBQuery, RawAircraft } from "./ADSBProvider";
+import { ADSB_USER_AGENT } from "./userAgent";
 
 interface ReadsbAircraft {
   hex: string;
@@ -68,7 +69,7 @@ export class AirplanesLiveProvider implements ADSBProvider {
 
     let response: Response;
     try {
-      response = await fetch(url, { signal: controller.signal });
+      response = await fetch(url, { signal: controller.signal, headers: { "User-Agent": ADSB_USER_AGENT } });
     } catch (err) {
       if ((err as Error).name === "AbortError") {
         throw new Error(`airplanes.live request timed out after ${this.timeoutMs}ms`);
